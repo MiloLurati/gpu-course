@@ -21,7 +21,10 @@ extern "C" {
  *
  * Author: Ben van Werkhoven <b.vanwerkhoven@esciencecenter.nl>
  */
-__global__ void cn_pnpoly(int *bitmap, float2 *points, float2 *vertices, int n) {
+
+__constant__ float2 const_vertices[VERTICES];
+
+__global__ void cn_pnpoly(int *bitmap, float2 *points, int n) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
 
     if (i < n) {
@@ -31,8 +34,8 @@ __global__ void cn_pnpoly(int *bitmap, float2 *points, float2 *vertices, int n) 
         int k = VERTICES-1;
 
         for (int j=0; j<VERTICES; k = j++) {    // edge from vk to vj
-            float2 vj = vertices[j]; 
-            float2 vk = vertices[k]; 
+            float2 vj = const_vertices[j]; 
+            float2 vk = const_vertices[k]; 
 
             float slope = (vk.x-vj.x) / (vk.y-vj.y);
 
@@ -48,7 +51,7 @@ __global__ void cn_pnpoly(int *bitmap, float2 *points, float2 *vertices, int n) 
 }
 
 
-__constant__ float2 d_vertices[VERTICES];
+
 
 
 
@@ -63,6 +66,7 @@ int main() {
     int num_points = (int)2e7;
 
     float2 *h_vertices;
+    float2 *d_vertices;
     float2 *h_points;
     int *h_bitmap;
     int *h_reference;
@@ -104,9 +108,15 @@ int main() {
     }
 
     // transfer vertices to d_vertices
-    err = cudaMemcpyToSymbol(d_vertices, h_vertices, VERTICES*sizeof(float2), cudaMemcpyHostToDevice);
+    err = cudaMemcpy(d_vertices, h_vertices, VERTICES*sizeof(float2), cudaMemcpyHostToDevice);
     if (err != cudaSuccess) {
         fprintf(stderr, "Error in cudaMemcpy: %s\n", cudaGetErrorString(err));
+    }
+
+    // transfer vertices to const_vertices
+    err = cudaMemcpyToSymbol(const_vertices, h_vertices, VERTICES*sizeof(float2), 0, cudaMemcpyHostToDevice);
+    if (err != cudaSuccess) {
+        fprintf(stderr, "Error in cudaMemcpyToSymbol: %s\n", cudaGetErrorString(err));
     }
 
     // create CUDA streams and events
@@ -148,7 +158,7 @@ int main() {
     cudaEventRecord(start, stream[0]);
 
     //call the kernel
-    cn_pnpoly<<<grid, threads, 0, stream[0]>>>(h_bitmap, h_points, d_vertices, num_points);
+    cn_pnpoly<<<grid, threads, 0, stream[0]>>>(h_bitmap, h_points, num_points);
 
     //stop time measurement
     cudaEventRecord(stop, stream[0]);
@@ -257,4 +267,3 @@ __global__ void cn_pnpoly_reference_kernel(int *bitmap, float2 *points, float2 *
         bitmap[i] = c; // DO NOT MODIFY THIS KERNEL
     }
 }
-
