@@ -48,7 +48,7 @@ __global__ void cn_pnpoly(int *bitmap, float2 *points, float2 *vertices, int n) 
 }
 
 
-
+__constant__ float2 d_vertices[VERTICES];
 
 
 
@@ -63,7 +63,6 @@ int main() {
     int num_points = (int)2e7;
 
     float2 *h_vertices;
-    float2 *d_vertices;
     float2 *h_points;
     int *h_bitmap;
     int *h_reference;
@@ -105,7 +104,7 @@ int main() {
     }
 
     // transfer vertices to d_vertices
-    err = cudaMemcpy(d_vertices, h_vertices, VERTICES*sizeof(float2), cudaMemcpyHostToDevice);
+    err = cudaMemcpyToSymbol(d_vertices, h_vertices, VERTICES*sizeof(float2), cudaMemcpyHostToDevice);
     if (err != cudaSuccess) {
         fprintf(stderr, "Error in cudaMemcpy: %s\n", cudaGetErrorString(err));
     }
