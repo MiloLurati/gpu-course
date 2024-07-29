@@ -24,7 +24,7 @@ extern "C" {
 
 __constant__ float2 const_vertices[VERTICES];
 
-__global__ void cn_pnpoly(int *bitmap, float2 *points, int n) {
+__global__ void cn_pnpoly(int *bitmap, float2 *points, float2 *vertices, int n) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
 
     if (i < n) {
@@ -158,7 +158,7 @@ int main() {
     cudaEventRecord(start, stream[0]);
 
     //call the kernel
-    cn_pnpoly<<<grid, threads, 0, stream[0]>>>(h_bitmap, h_points, num_points);
+    cn_pnpoly<<<grid, threads, 0, stream[0]>>>(h_bitmap, h_points, d_vertices, num_points);
 
     //stop time measurement
     cudaEventRecord(stop, stream[0]);
